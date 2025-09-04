@@ -65,6 +65,7 @@ dependencies:
   
   # JSON Serialization
   json_annotation: ^4.8.1
+  uuid: ^4.2.2  # Para geração de UUIDs
   
   # Gerenciamento de arquivos
   path: ^1.8.3
@@ -72,7 +73,8 @@ dependencies:
   lottie: 2.7.0  # Para animações Lottie
   
   # Deep Linking
-  uni_links: ^0.5.1  # Para lidar com deep links e URL schemes
+  app_links: ^6.1.1 # Para lidar com deep links e URL schemes
+ # Mantendo para compatibilidade, mas o app_links é o recomendado
 
 dev_dependencies:
   flutter_test:
@@ -83,7 +85,6 @@ dev_dependencies:
   json_serializable: ^6.7.1
   
   # Utils
-  uuid: ^4.2.2  # Para geração de IDs únicos
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
