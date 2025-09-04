@@ -1,12 +1,14 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/meal_model.dart';
 
 class MealService {
+  final SupabaseClient _supabase = Supabase.instance.client;
   static const String _baseUrl = 'https://www.themealdb.com/api/json/v1/1/';
 
-  // Get a random meal
+  // Get a random meal from external API
   static Future<Meal?> getRandomMeal() async {
     try {
       debugPrint('🍽️  Buscando uma refeição aleatória...');
@@ -32,7 +34,63 @@ class MealService {
     }
   }
 
-  // Search meals by name
+  // Save a meal to user's saved meals
+  Future<void> saveMeal(Meal meal) async {
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) throw Exception('Usuário não autenticado');
+
+      await _supabase.from('saved_meals').upsert({
+        'id': meal.id,
+        'user_id': userId,
+        'meal_data': meal.toJson(),
+        'created_at': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      debugPrint('❌ Erro ao salvar refeição: $e');
+      rethrow;
+    }
+  }
+
+  // Get user's saved meals
+  Future<List<Meal>> getSavedMeals() async {
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) throw Exception('Usuário não autenticado');
+
+      final response = await _supabase
+          .from('saved_meals')
+          .select()
+          .eq('user_id', userId)
+          .order('created_at', ascending: false);
+
+      return (response as List)
+          .map((data) => Meal.fromJson(data['meal_data']))
+          .toList();
+    } catch (e) {
+      debugPrint('❌ Erro ao buscar refeições salvas: $e');
+      rethrow;
+    }
+  }
+
+  // Delete a saved meal
+  Future<void> deleteSavedMeal(String mealId) async {
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) throw Exception('Usuário não autenticado');
+
+      await _supabase
+          .from('saved_meals')
+          .delete()
+          .eq('id', mealId)
+          .eq('user_id', userId);
+    } catch (e) {
+      debugPrint('❌ Erro ao remover refeição: $e');
+      rethrow;
+    }
+  }
+
+  // Search meals by name (external API)
   static Future<List<Meal>> searchMeals(String query) async {
     try {
       debugPrint('🔍 Buscando refeições com o termo: $query');

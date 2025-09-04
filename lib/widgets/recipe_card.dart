@@ -85,7 +85,7 @@ class RecipeCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Tipo: ${recipe.tipo != null && recipe.tipo!.isNotEmpty ? recipe.tipo![0].toUpperCase() + recipe.tipo!.substring(1) : 'Não especificado'}',
+                      'Tipo: ${recipe.products.isNotEmpty ? recipe.products.first.product?.name ?? 'Não especificado' : 'Não especificado'}',
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                   ],
@@ -100,12 +100,7 @@ class RecipeCard extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       IconButton(
-                        icon: Icon(
-                          recipe.isFavorite
-                              ? Icons.favorite
-                              : Icons.favorite_border,
-                          color: recipe.isFavorite ? Colors.red : null,
-                        ),
+                        icon: const Icon(Icons.favorite_border),
                         onPressed: onFavoritePressed,
                       ),
                     ],
@@ -171,7 +166,7 @@ class RecipeCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Tipo: ${_formatTipo(recipe.tipo ?? '')}',
+                            'Tipo: ${recipe.products.isNotEmpty ? recipe.products.first.product?.name ?? 'Não especificado' : 'Não especificado'}',
                             style: TextStyle(
                               fontSize: 16,
                               color: Colors.grey[600],
@@ -202,7 +197,7 @@ class RecipeCard extends StatelessWidget {
 
                           // Recipe details
                           const SizedBox(height: 20),
-                          if (recipe.ingredients.isNotEmpty) ...[
+                          if (recipe.products.isNotEmpty) ...[
                             const Text(
                               'Ingredientes:',
                               style: TextStyle(
@@ -211,8 +206,8 @@ class RecipeCard extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            ...recipe.ingredients.map(
-                              (ingredient) => Padding(
+                            ...recipe.products.map(
+                              (product) => Padding(
                                 padding: const EdgeInsets.symmetric(
                                   vertical: 4,
                                 ),
@@ -223,7 +218,11 @@ class RecipeCard extends StatelessWidget {
                                       '• ',
                                       style: TextStyle(fontSize: 16),
                                     ),
-                                    Expanded(child: Text(ingredient.trim())),
+                                    Expanded(
+                                      child: Text(
+                                        '${product.quantity} ${product.unit} de ${product.product?.name ?? 'Ingrediente'}',
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -319,33 +318,17 @@ class RecipeCard extends StatelessWidget {
                           onFavoritePressed?.call();
                           Navigator.pop(context);
                         },
-                        icon: Icon(
-                          recipe.isFavorite
-                              ? Icons.favorite
-                              : Icons.favorite_border,
-                          color: recipe.isFavorite ? Colors.red : null,
-                        ),
+                        icon: const Icon(Icons.favorite_border),
                         label: Text(
-                          recipe.isFavorite
-                              ? 'Remover dos Favoritos'
-                              : 'Adicionar aos Favoritos',
+                          'Adicionar aos Favoritos'
                         ),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          backgroundColor: recipe.isFavorite
-                              ? Colors.red.withValues(
-                                  red: 1.0,
-                                  green: 0.0,
-                                  blue: 0.0,
-                                  alpha: 0.1,
-                                )
-                              : null,
-                          foregroundColor: recipe.isFavorite
-                              ? Colors.red
-                              : null,
+                          backgroundColor: null,
+                          foregroundColor: null,
                         ),
                       ),
                     ),
@@ -358,8 +341,4 @@ class RecipeCard extends StatelessWidget {
     );
   }
 
-  String _formatTipo(String tipo) {
-    if (tipo.isEmpty) return 'Não especificado';
-    return tipo[0].toUpperCase() + tipo.substring(1);
-  }
 }

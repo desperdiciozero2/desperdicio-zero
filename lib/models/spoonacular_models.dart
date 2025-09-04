@@ -33,7 +33,7 @@ class SpoonacularRecipe {
 
   factory SpoonacularRecipe.fromJson(Map<String, dynamic> json) {
     return SpoonacularRecipe(
-      id: json['id'],
+      id: json['id'] as int,
       title: json['title'],
       image: json['image'],
       summary: json['summary']?.replaceAll(RegExp(r'<[^>]*>'), ''),
@@ -64,27 +64,22 @@ class SpoonacularRecipe {
   }
 
   // Converte para o modelo de Recipe existente
-  Recipe toRecipe() {
+  Recipe toRecipe(String userId) {
+    final now = DateTime.now();
+    
     return Recipe(
-      id: id,
+      id: id.toString(),
+      userId: userId,
       title: title,
       description: summary,
       imageUrl: image,
-      ingredients:
-          extendedIngredients
-              ?.map(
-                (ing) =>
-                    '${ing.amount?.toStringAsFixed(1) ?? ''} ${ing.unit ?? ''} ${ing.nameClean ?? ing.name}',
-              )
-              .toList() ??
-          [],
       instructions: _getFormattedInstructions(),
       prepTime: readyInMinutes,
       cookTime: readyInMinutes,
       servings: servings,
-      nutrition: nutrition?.toNutrition(),
-      isFavorite: false,
-      tipo: dishTypes?.isNotEmpty == true ? dishTypes?.first : 'geral',
+      createdAt: now,
+      updatedAt: now,
+      products: [], // Will be populated separately if needed
     );
   }
 

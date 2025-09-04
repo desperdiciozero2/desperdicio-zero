@@ -1,178 +1,164 @@
-class Recipe {
-  final int id;
-  final String title;
-  final String? description;
-  final String? imageUrl;
-  final List<String> ingredients;
-  final String instructions;
-  final int? prepTime; // em minutos
-  final int? cookTime; // em minutos
-  final int? servings;
-  final Nutrition? nutrition;
-  final bool isFavorite;
-  final String? tipo; // Mantendo compatibilidade com o código existente
+import 'package:desperdicio_zero/models/product_model.dart';
 
-  Recipe({
+class RecipeProduct {
+  final String id;
+  final String recipeId;
+  final String productId;
+  final num quantity;
+  final String unit;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final Product? product;
+
+  RecipeProduct({
     required this.id,
-    required this.title,
-    this.description,
-    this.imageUrl,
-    required this.ingredients,
-    required this.instructions,
-    this.prepTime,
-    this.cookTime,
-    this.servings,
-    this.nutrition,
-    this.isFavorite = false,
-    this.tipo,
+    required this.recipeId,
+    required this.productId,
+    required this.quantity,
+    required this.unit,
+    required this.createdAt,
+    required this.updatedAt,
+    this.product,
   });
 
-  // Mantendo compatibilidade com o código existente
-  String get receita => title;
-  String get modoPreparo => _formatInstructionsForDisplay(instructions);
-  String? get linkImagem => imageUrl;
-  List<IngredienteBase> get ingredientesBase => ingredients
-      .map(
-        (ing) => IngredienteBase(
-          id: ing.hashCode,
-          nomesIngrediente: [ing],
-          receitaId: id,
-        ),
-      )
-      .toList();
-
-  factory Recipe.fromJson(Map<String, dynamic> json) {
-    return Recipe(
-      id: json['id'] ?? 0,
-      title: json['title'] ?? 'Receita sem nome',
-      description:
-          json['description'] ??
-          json['summary']?.replaceAll(RegExp(r'<[^>]*>'), ''),
-      imageUrl: json['imageUrl'] ?? json['image'],
-      ingredients:
-          (json['ingredients'] as List<dynamic>?)
-              ?.map((e) => e.toString())
-              .toList() ??
-          (json['extendedIngredients'] as List<dynamic>?)
-              ?.map(
-                (e) => e is Map
-                    ? '${e['amount']} ${e['unit']} ${e['name']}'.trim()
-                    : e.toString(),
-              )
-              .toList() ??
-          [],
-      instructions: _formatInstructions(
-        json['instructions'],
-        json['analyzedInstructions'],
-      ),
-      prepTime: json['prepTime'] ?? json['readyInMinutes'],
-      cookTime: json['cookTime'] ?? json['cookingMinutes'],
-      servings: json['servings'],
-      nutrition: json['nutrition'] != null
-          ? Nutrition.fromJson(json['nutrition'])
-          : null,
-      isFavorite: json['isFavorite'] ?? false,
-      tipo: json['tipo'] ?? 'geral',
+  factory RecipeProduct.fromJson(Map<String, dynamic> json) {
+    return RecipeProduct(
+      id: json['id'] as String,
+      recipeId: json['recipe_id'] as String,
+      productId: json['product_id'] as String,
+      quantity: json['quantity'] as num,
+      unit: json['unit'] as String,
+      createdAt: DateTime.parse(json['created_at'] as String),
+      updatedAt: DateTime.parse(json['updated_at'] as String),
+      product: json['products'] != null ? Product.fromJson(json['products']) : null,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'title': title,
-      'description': description,
-      'imageUrl': imageUrl,
-      'ingredients': ingredients,
-      'instructions': instructions,
-      'prepTime': prepTime,
-      'cookTime': cookTime,
-      'servings': servings,
-      'nutrition': nutrition?.toJson(),
-      'isFavorite': isFavorite,
-      'tipo': tipo,
+      'recipe_id': recipeId,
+      'product_id': productId,
+      'quantity': quantity,
+      'unit': unit,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
+      if (product != null) 'products': product!.toJson(),
     };
   }
+}
 
-  // Formata as instruções para exibição
-  static String _formatInstructionsForDisplay(String instructions) {
-    // Adiciona quebras de linha após pontos finais, exceto em abreviações comuns
-    var formatted = instructions
-        .replaceAllMapped(
-          RegExp(
-            r'(?<!\.\s)(?<!\.\d)(?<![A-Za-z]\.)(?<!\.)(?<!\. )(?<![A-Za-z]\.[A-Za-z])\.(?!\w|\.)(?!\s*[)}\]])(?=\s*[A-Z])',
-          ),
-          (match) => '.\n\n',
-        )
-        // Remove múltiplas quebras de linha
-        .replaceAll(RegExp(r'\n{3,}'), '\n\n')
-        // Remove espaços em branco extras
-        .replaceAll(RegExp(r' +'), ' ')
-        .trim();
+class Recipe {
+  final String id;
+  final String userId;
+  final String title;
+  final String? description;
+  final String? imageUrl;
+  final String instructions;
+  final int? prepTime; // em minutos
+  final int? cookTime; // em minutos
+  final int? servings;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final List<RecipeProduct> products;
 
-    return formatted;
+  Recipe({
+    required this.id,
+    required this.userId,
+    required this.title,
+    this.description,
+    this.imageUrl,
+    required this.instructions,
+    this.prepTime,
+    this.cookTime,
+    this.servings,
+    required this.createdAt,
+    required this.updatedAt,
+    List<RecipeProduct>? products,
+  }) : products = products ?? [];
+
+  // Legacy getters for compatibility
+  String get receita => title;
+  String get modoPreparo => instructions;
+  String? get linkImagem => imageUrl;
+  
+  // For backward compatibility
+  List<IngredienteBase> get ingredientesBase => products.map((p) => IngredienteBase(
+        id: p.id.hashCode,
+        nomesIngrediente: [p.product?.name ?? 'Ingrediente'],
+        receitaId: int.tryParse(id) ?? 0,
+      )).toList();
+
+  factory Recipe.fromJson(Map<String, dynamic> json) {
+    return Recipe(
+      id: json['id'] as String,
+      userId: json['user_id'] as String,
+      title: json['title'] as String? ?? 'Receita sem nome',
+      description: json['description'] as String?,
+      imageUrl: json['image_url'] as String?,
+      instructions: json['instructions'] as String? ?? '',
+      prepTime: json['prep_time'] as int?,
+      cookTime: json['cook_time'] as int?,
+      servings: json['servings'] as int?,
+      createdAt: DateTime.parse(json['created_at'] as String? ?? DateTime.now().toIso8601String()),
+      updatedAt: DateTime.parse(json['updated_at'] as String? ?? DateTime.now().toIso8601String()),
+      products: (json['recipe_products'] as List<dynamic>?)
+          ?.map((e) => RecipeProduct.fromJson(e as Map<String, dynamic>))
+          .toList() ?? [],
+    );
   }
 
-  // Formata as instruções da receita a partir dos dados da API
-  static String _formatInstructions(
-    dynamic instructions,
-    dynamic analyzedInstructions,
-  ) {
-    if (instructions is String) {
-      // Remove tags HTML e formata o texto
-      return instructions
-          .replaceAll(RegExp(r'<[^>]*>'), '')
-          .replaceAll('\n', ' ')
-          .replaceAll(RegExp(r'\s+'), ' ')
-          .trim();
-    }
-
-    if (analyzedInstructions is List) {
-      return analyzedInstructions
-          .expand(
-            (i) =>
-                (i['steps'] as List?)?.map(
-                  (s) => '${s['number']}. ${s['step']}',
-                ) ??
-                <String>[],
-          )
-          .join('\n\n');
-    }
-
-    return 'Instruções não disponíveis';
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'user_id': userId,
+      'title': title,
+      'description': description,
+      'image_url': imageUrl,
+      'instructions': instructions,
+      'prep_time': prepTime,
+      'cook_time': cookTime,
+      'servings': servings,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
+      'recipe_products': products.map((p) => p.toJson()).toList(),
+    }..removeWhere((key, value) => value == null);
   }
 
   Recipe copyWith({
-    int? id,
+    String? id,
+    String? userId,
     String? title,
     String? description,
     String? imageUrl,
-    List<String>? ingredients,
     String? instructions,
     int? prepTime,
     int? cookTime,
     int? servings,
-    Nutrition? nutrition,
-    bool? isFavorite,
-    String? tipo,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    List<RecipeProduct>? products,
   }) {
     return Recipe(
       id: id ?? this.id,
+      userId: userId ?? this.userId,
       title: title ?? this.title,
       description: description ?? this.description,
       imageUrl: imageUrl ?? this.imageUrl,
-      ingredients: ingredients ?? this.ingredients,
       instructions: instructions ?? this.instructions,
       prepTime: prepTime ?? this.prepTime,
       cookTime: cookTime ?? this.cookTime,
       servings: servings ?? this.servings,
-      nutrition: nutrition ?? this.nutrition,
-      isFavorite: isFavorite ?? this.isFavorite,
-      tipo: tipo ?? this.tipo,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      products: products ?? this.products,
     );
   }
 
   // Mantendo compatibilidade
-  List<String> get listaDeIngredientes => ingredients;
+  List<String> get listaDeIngredientes => products
+      .map((p) => '${p.quantity} ${p.unit} de ${p.product?.name ?? 'ingrediente'}')
+      .toList();
 }
 
 class Nutrition {
@@ -181,7 +167,7 @@ class Nutrition {
   final double? carbs;
   final double? fat;
 
-  Nutrition({this.calories, this.protein, this.carbs, this.fat});
+  const Nutrition({this.calories, this.protein, this.carbs, this.fat});
 
   factory Nutrition.fromJson(Map<String, dynamic> json) {
     return Nutrition(
@@ -206,25 +192,24 @@ class IngredienteBase {
   final int id;
   final List<String> nomesIngrediente;
   final int receitaId;
-  final DateTime? dataCriacao;
+  final double? quantidade;
+  final String? unidade;
 
-  IngredienteBase({
+  const IngredienteBase({
     required this.id,
     required this.nomesIngrediente,
     required this.receitaId,
-    this.dataCriacao,
+    this.quantidade,
+    this.unidade,
   });
 
   factory IngredienteBase.fromJson(Map<String, dynamic> json) {
     return IngredienteBase(
-      id: json['id'] ?? 0,
-      nomesIngrediente: List<String>.from(
-        json['nomesIngrediente']?.map((e) => e.toString()) ?? [],
-      ),
-      receitaId: json['receita_id'] ?? 0,
-      dataCriacao: json['created_at'] != null
-          ? DateTime.tryParse(json['created_at'])
-          : null,
+      id: json['id'] as int,
+      nomesIngrediente: List<String>.from((json['nomesIngrediente'] as List<dynamic>?) ?? []),
+      receitaId: json['receitaId'] as int? ?? 0,
+      quantidade: (json['quantidade'] as num?)?.toDouble(),
+      unidade: json['unidade'] as String?,
     );
   }
 
@@ -232,8 +217,9 @@ class IngredienteBase {
     return {
       'id': id,
       'nomesIngrediente': nomesIngrediente,
-      'receita_id': receitaId,
-      'created_at': dataCriacao?.toIso8601String(),
+      'receitaId': receitaId,
+      'quantidade': quantidade,
+      'unidade': unidade,
     };
   }
 }

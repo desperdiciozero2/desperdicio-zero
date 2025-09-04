@@ -1,8 +1,13 @@
 pluginManagement {
-    val flutterSdkPath: String = settings.extra["flutter.sdk"].toString()
+    val flutterSdkPath = File("C:\\SDK e JDK\\flutter")
     settings.extra["gradle.user.home"] = file("${settings.settingsDir.parentFile}/.gradle")
+    settings.extra["flutter.sdk"] = flutterSdkPath.absolutePath
 
-    includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
+    if (flutterSdkPath.exists()) {
+        includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
+    } else {
+        throw GradleException("Flutter SDK not found at ${flutterSdkPath.absolutePath}")
+    }
 
     repositories {
         google()
@@ -13,9 +18,9 @@ pluginManagement {
     resolutionStrategy {
         eachPlugin {
             when (requested.id.name) {
-                "com.android.application" -> useModule("com.android.tools.build:gradle:8.1.0")
-                "com.android.library" -> useModule("com.android.tools.build:gradle:8.1.0")
-                "org.jetbrains.kotlin.android" -> useVersion("1.9.0")
+                "com.android.application" -> useModule("com.android.tools.build:gradle:8.6.0")
+                "com.android.library" -> useModule("com.android.tools.build:gradle:8.6.0")
+                "org.jetbrains.kotlin.android" -> useVersion("2.1.0")
                 "dev.flutter.flutter-gradle-plugin" -> useModule("dev.flutter:gradle:3.16.0")
             }
         }
@@ -24,8 +29,8 @@ pluginManagement {
 
 plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
-    id("com.android.application") version "8.1.0" apply false
-    id("org.jetbrains.kotlin.android") version "1.9.0" apply false
+    id("com.android.application") version "8.6.0" apply false
+    id("org.jetbrains.kotlin.android") version "2.1.0" apply false
 }
 
 include(":app")
@@ -41,9 +46,4 @@ gradle.projectsLoaded {
     }
 }
 
-// Configuração para evitar problemas de memória
-gradle.projectsEvaluated {
-    tasks.withType<JavaCompile> {
-        options.compilerArgs.add("-Xmx4g")
-    }
-}
+// Memory settings should be configured in gradle.properties

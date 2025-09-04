@@ -1,22 +1,160 @@
 import 'package:flutter/material.dart';
-import 'package:desperdicio_zero/screens/products_list_screen.dart';
-import 'package:desperdicio_zero/screens/add_product_screen.dart';
-import 'package:desperdicio_zero/screens/recipes_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:desperdicio_zero/models/product_model.dart';
-import 'package:desperdicio_zero/services/notification_service.dart';
+import 'package:desperdicio_zero/providers/product_provider.dart';
+import 'package:desperdicio_zero/screens/add_product_screen.dart';
 import 'package:desperdicio_zero/services/auth_service.dart';
-import 'package:intl/intl.dart' show DateFormat;
+import 'package:desperdicio_zero/providers/auth_provider.dart';
+import 'package:desperdicio_zero/screens/recipes_screen.dart';
+import 'package:intl/intl.dart';
 
-class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+class HomeScreen extends ConsumerStatefulWidget {
+  const HomeScreen({super.key});
 
   @override
-  HomeScreenState createState() => HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _selectedIndex = 0;
-  final List<Product> _products = [];
+
+  @override
+  void initState() {
+    super.initState();
+    // Load products when the screen initializes
+    _loadProducts();
+  }
+
+  Future<void> _loadProducts() async {
+    try {
+      await ref.read(productsProvider.notifier).loadProducts();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao carregar produtos: $e')),
+        );
+      }
+    }
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.shopping_basket_outlined, size: 80, color: Colors.grey[400]),
+          const SizedBox(height: 20),
+          const Text(
+            'Nenhum produto adicionado',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 10),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 40),
+            child: Text(
+              'Toque no botão + para adicionar seu primeiro produto',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey),
+            ),
+          ),
+          const SizedBox(height: 30),
+          ElevatedButton.icon(
+            onPressed: _navigateToAddProduct,
+            icon: const Icon(Icons.add_shopping_cart),
+            label: const Text('Adicionar Produto'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _navigateToAddProduct() async {
+    if (!mounted) return;
+    
+    final newProduct = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddProductScreen(
+          onProductAdded: (product) => product,
+        ),
+      ),
+    );
+    
+    if (newProduct != null && mounted) {
+      await _addProduct(newProduct);
+    }
+  }
+
+  Future<void> _addProduct(Product product) async {
+    if (!mounted) return;
+    
+    final context = this.context; // Capture context before async gap
+    
+    try {
+      await ref.read(productsProvider.notifier).addProduct(product);
+      if (!mounted) return;
+      
+      if (ScaffoldMessenger.of(context).mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Produto adicionado com sucesso!')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      
+      if (ScaffoldMessenger.of(context).mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao adicionar produto: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteProduct(Product product) async {
+    try {
+      await ref.read(productsProvider.notifier).deleteProduct(product.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Produto removido com sucesso!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao remover produto: $e')),
+        );
+      }
+    }
+  }
+
+  Widget _buildProductList(List<Product> products) {
+    return ListView.builder(
+      padding: const EdgeInsets.all(8),
+      itemCount: products.length,
+      itemBuilder: (context, index) {
+        final product = products[index];
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+          child: ListTile(
+            title: Text(product.name),
+            subtitle: Text(DateFormat('dd/MM/yyyy').format(product.expirationDate!)),
+            trailing: IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red),
+              onPressed: () => _deleteProduct(product),
+            ),
+            onTap: () {
+              // Handle product tap (e.g., edit product)
+            },
+          ),
+        );
+      },
+    );
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -24,353 +162,125 @@ class HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Future<void> _addProduct(Product product) async {
-    if (!mounted) return;
-    
-    setState(() {
-      _products.add(product);
-    });
-
-    // Agenda notificação para o produto adicionado
-    if (product.expirationDate != null) {
-      final notificationService = NotificationService();
-
-      try {
-        // Notifica 1 dia antes do vencimento
-        await notificationService.scheduleProductExpirationNotification(
-          id: product.id.hashCode,
-          title: 'Produto perto do vencimento!',
-          body:
-              'O produto ${product.name} vence em breve (${DateFormat('dd/MM/yyyy').format(product.expirationDate!)}).',
-          expirationDate: product.expirationDate!,
-          daysBefore: 1,
-        );
-
-        // Notifica no dia do vencimento
-        await notificationService.scheduleProductExpirationNotification(
-          id: product.id.hashCode,
-          title: 'Produto vencendo hoje!',
-          body: 'O produto ${product.name} vence hoje!',
-          expirationDate: product.expirationDate!,
-          daysBefore: 0,
-        );
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Erro ao agendar notificações para o produto.'),
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-      }
-    }
-  }
-
-  void _toggleProductStatus(Product product) {
-    setState(() {
-      final index = _products.indexWhere((p) => p.id == product.id);
-      if (index != -1) {
-        _products[index] = product.copyWith(isConsumed: !product.isConsumed);
-
-        // Se o produto foi marcado como consumido, cancela as notificações
-        if (_products[index].isConsumed) {
-          final notificationService = NotificationService();
-          notificationService.cancelNotification(
-            product.id.hashCode,
-            daysBefore: 1,
-          );
-          notificationService.cancelNotification(
-            product.id.hashCode,
-            daysBefore: 0,
-          );
-        }
-      }
-    });
-  }
-
-  void _deleteProduct(Product product) {
-    setState(() {
-      _products.removeWhere((p) => p.id == product.id);
-    });
-
-    // Cancela as notificações quando o produto é removido
-    final notificationService = NotificationService();
-    notificationService.cancelNotification(product.id.hashCode, daysBefore: 1);
-    notificationService.cancelNotification(product.id.hashCode, daysBefore: 0);
-  }
-
-  // Método para testar notificação manualmente
-  Future<void> _testNotification() async {
-    final notificationService = NotificationService();
-
-    // Agenda uma notificação para daqui a 5 segundos
-    final testTime = DateTime.now().add(Duration(seconds: 5));
-
-    await notificationService.scheduleProductExpirationNotification(
-      id: -1, // ID negativo para não conflitar com produtos reais
-      title: 'Notificação de teste',
-      body: 'Esta é uma notificação de teste do Desperdício Zero!',
-      expirationDate: testTime,
-      daysBefore: 0,
-    );
-
-    // Mostra um snackbar de confirmação
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Notificação de teste agendada para daqui a 5 segundos',
-          ),
-          duration: Duration(seconds: 3),
-        ),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    final productsAsync = ref.watch(productsProvider);
+    
     return Scaffold(
       appBar: AppBar(
-        title: Text('Desperdício Zero'),
+        title: const Text('Desperdício Zero'),
         backgroundColor: Colors.green,
+        elevation: 0,
         actions: [
           IconButton(
-            icon: Icon(Icons.notifications),
-            onPressed: _testNotification,
-            tooltip: 'Testar notificação',
-          ),
-          IconButton(
-            icon: Icon(Icons.logout),
-            onPressed: () async {
-              try {
-                await AuthService.instance.signOut();
-                if (mounted) {
-                  Navigator.pushNamedAndRemoveUntil(
-                    context,
-                    '/login',
-                    (route) => false,
-                  );
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Erro ao fazer logout. Tente novamente.'),
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-                }
-              }
+            icon: const Icon(Icons.restaurant_menu),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const RecipesScreen(),
+                ),
+              );
             },
-            tooltip: 'Sair',
+            tooltip: 'Ver Receitas',
+          ),
+          Consumer(
+            builder: (context, ref, _) {
+              return IconButton(
+                icon: const Icon(Icons.logout),
+                onPressed: () async {
+                  try {
+                    final authService = AuthService();
+                    await authService.signOut();
+                    
+                    // Navega para a tela de login após o logout bem-sucedido
+                    if (mounted) {
+                      // Força a atualização do estado de autenticação
+                      ref.invalidate(authStateProvider);
+                      
+                      // Navega para a tela de login
+                      Navigator.of(context).pushNamedAndRemoveUntil(
+                        '/login',
+                        (route) => false,
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Erro ao fazer logout: ${e.toString()}'),
+                          backgroundColor: Colors.red,
+                          duration: const Duration(seconds: 3),
+                          action: SnackBarAction(
+                            label: 'Tentar novamente',
+                            textColor: Colors.white,
+                            onPressed: () {
+                              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                              // Tenta fazer logout novamente
+                              Navigator.of(context).popAndPushNamed('/login');
+                            },
+                          ),
+                        ),
+                      );
+                    }
+                  }
+                },
+                tooltip: 'Sair',
+              );
+            },
           ),
         ],
       ),
-      body: _getBody(),
+      body: RefreshIndicator(
+        onRefresh: _loadProducts,
+        child: productsAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, stack) => Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text('Erro ao carregar produtos'),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: _loadProducts,
+                  child: const Text('Tentar novamente'),
+                ),
+              ],
+            ),
+          ),
+          data: (products) {
+            if (products.isEmpty) {
+              return _buildEmptyState();
+            }
+            return _buildProductList(products);
+          },
+        ),
+      ),
       floatingActionButton: _selectedIndex == 0
           ? FloatingActionButton(
-              onPressed: () async {
-                if (!mounted) return;
-                
-                try {
-                  final newProduct = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => AddProductScreen(
-                        onProductAdded: (newProduct) {
-                          if (mounted) {
-                            _addProduct(newProduct);
-                          }
-                        },
-                      ),
-                    ),
-                  );
-
-                  if (newProduct != null && mounted) {
-                    await _addProduct(newProduct);
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Erro ao adicionar produto. Tente novamente.'),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                  }
-                }
-              },
+              onPressed: _navigateToAddProduct,
               backgroundColor: Colors.green,
-              child: Icon(Icons.shopping_cart),
+              child: const Icon(Icons.add),
             )
           : null,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.green,
         onTap: _onItemTapped,
-        items: [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Início'),
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Início',
+          ),
           BottomNavigationBarItem(
             icon: Icon(Icons.analytics),
             label: 'Estatísticas',
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
-        ],
-      ),
-    );
-  }
-
-  Widget _getBody() {
-    switch (_selectedIndex) {
-      case 0: // Página inicial
-        return _buildHomeContent();
-      case 1: // Estatísticas
-        return Center(
-          child: Text('Em desenvolvimento - Página de Estatísticas'),
-        );
-      case 2: // Perfil
-        return Center(child: Text('Em desenvolvimento - Página de Perfil'));
-      default:
-        return _buildHomeContent();
-    }
-  }
-
-  Widget _buildHomeContent() {
-    final totalProducts = _products.length;
-    final consumedProducts = _products.where((p) => p.isConsumed).length;
-    final activeProducts = totalProducts - consumedProducts;
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Resumo dos Produtos',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 16),
-                  _buildStatisticRow(
-                    'Total de Produtos',
-                    totalProducts.toString(),
-                  ),
-                  _buildStatisticRow(
-                    'Produtos Ativos',
-                    activeProducts.toString(),
-                  ),
-                  _buildStatisticRow('Consumidos', consumedProducts.toString()),
-                  SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => ProductsListScreen(
-                                  products: _products,
-                                  onProductTapped: _toggleProductStatus,
-                                  onProductDeleted: _deleteProduct,
-                                ),
-                              ),
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            minimumSize: Size(double.infinity, 48),
-                          ),
-                          child: Text('Ver Produtos'),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            final ingredients = _products
-                                .where((p) => !p.isConsumed)
-                                .map((p) => p.name)
-                                .toList();
-
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => RecipesScreen(
-                                  ingredients: ingredients,
-                                  title: 'Receitas com seus produtos',
-                                ),
-                              ),
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.orange,
-                            minimumSize: Size(double.infinity, 48),
-                          ),
-                          child: const Text('Ver Receitas'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-          SizedBox(height: 24),
-          Text(
-            'Dicas para Reduzir o Desperdício',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          SizedBox(height: 12),
-          _buildTipCard(
-            'Organize sua despensa',
-            'Mantenha os produtos mais antigos na frente para usá-los primeiro.',
-            Icons.kitchen,
-          ),
-          _buildTipCard(
-            'Aproveite os alimentos por completo',
-            'Muitas partes que costumamos descartar são comestíveis e nutritivas.',
-            Icons.recycling,
-          ),
-          _buildTipCard(
-            'Congele os alimentos',
-            'Se não for consumir logo, congele para aumentar a vida útil.',
-            Icons.ac_unit,
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: 'Perfil',
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildStatisticRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: TextStyle(fontSize: 16)),
-          Text(
-            value,
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTipCard(String title, String description, IconData icon) {
-    return Card(
-      margin: EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        leading: Icon(icon, color: Colors.green),
-        title: Text(title, style: TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(description),
       ),
     );
   }

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' show DateFormat;
+import 'package:uuid/uuid.dart';
 import '../models/product_model.dart';
 import '../widgets/barcode_scanner_widget.dart';
+import '../services/auth_service.dart';
 
 class AddProductScreen extends StatefulWidget {
   final Function(Product) onProductAdded;
@@ -18,6 +20,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
   final _typeController = TextEditingController();
   final _quantityController = TextEditingController();
   final _brandController = TextEditingController();
+  final _authService = AuthService();
   final _storeController = TextEditingController();
   final _priceController = TextEditingController();
 
@@ -254,8 +257,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
               ElevatedButton(
                 onPressed: () {
                   if (_formKey.currentState!.validate()) {
+                    final now = DateTime.now();
                     final product = Product(
-                      id: DateTime.now().millisecondsSinceEpoch.toString(),
+                      id: const Uuid().v4(),
+                      userId: _authService.currentUser?.id ?? '',
                       name: _nameController.text,
                       type: _typeController.text.isNotEmpty
                           ? _typeController.text
@@ -263,6 +268,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       quantity: double.parse(_quantityController.text),
                       unit: _selectedUnit,
                       purchaseDate: _purchaseDate,
+                      createdAt: now,
+                      updatedAt: now,
                       expirationDate: _expirationDate,
                       brand: _brandController.text.isNotEmpty
                           ? _brandController.text

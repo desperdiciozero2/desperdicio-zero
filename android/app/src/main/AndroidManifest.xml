@@ -40,19 +40,67 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <!-- Deep linking para autenticação -->
+            
+            <!-- Deep Links para autenticação -->
+            <!-- Deep Links para autenticação -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <!-- Suporte para links do tipo: com.example.desperdicio_zero://login-callback -->
+                <!-- Esquema do seu app (deve corresponder ao configurado no Supabase) -->
                 <data
                     android:scheme="com.example.desperdicio_zero"
-                    android:host="login-callback" />
-                <!-- Suporte para links do tipo: com.example.desperdicio_zero://reset-password -->
+                    android:host="auth" />
+            </intent-filter>
+            
+            <!-- Deep Links para reset de senha -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
                 <data
                     android:scheme="com.example.desperdicio_zero"
                     android:host="reset-password" />
+            </intent-filter>
+            
+            <!-- Deep Links para confirmação de e-mail -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="com.example.desperdicio_zero"
+                    android:host="confirm-email" />
+            </intent-filter>
+            
+            <!-- Deep Links para confirmação de e-mail -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="com.example.desperdicio_zero"
+                    android:host="confirm-email" />
+            </intent-filter>
+            
+            <!-- Deep Links para login callback -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="com.example.desperdicio_zero"
+                    android:host="login-callback" />
+            </intent-filter>
+            
+            <!-- Intent Filter para Deep Links Genéricos -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="com.example.desperdicio_zero"
+                    android:host="*" />
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
@@ -60,9 +108,12 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <meta-data 
+            android:name="deferred-components"
+            android:value="false" />
             
         <!-- Receiver para notificações agendadas -->
-        <receiver android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+        <receiver android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />

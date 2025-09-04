@@ -5,17 +5,14 @@ import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
 import '../models/spoonacular_models.dart';
 import '../models/recipe_model.dart';
+import 'auth_service.dart';
 
 final _logger = Logger('SpoonacularService');
 
-// Função para configurar o logging
 void setupLogging() {
-  // Configura o nível de log para mostrar tudo
   Logger.root.level = Level.ALL;
 
-  // Configura o output do log
   Logger.root.onRecord.listen((record) {
-    // Usa print diretamente para evitar recursão
     final buffer = StringBuffer();
     buffer.write(
       '${record.level.name}: ${record.time}: ${record.loggerName}: ${record.message}',
@@ -28,7 +25,8 @@ void setupLogging() {
       buffer.write('\nStack trace: ${record.stackTrace}');
     }
 
-    print(buffer.toString());
+    // Usando o logger em vez de print para produção
+    _logger.info(buffer.toString());
   });
 }
 
@@ -36,12 +34,13 @@ class SpoonacularService {
   static final SpoonacularService _instance = SpoonacularService._internal();
   final String _baseUrl = 'https://api.spoonacular.com/recipes';
   late final String _apiKey;
+  final AuthService _authService;
 
   factory SpoonacularService() {
     return _instance;
   }
 
-  SpoonacularService._internal() {
+  SpoonacularService._internal() : _authService = AuthService() {
     _apiKey = dotenv.env['SPOONACULAR_API_KEY'] ?? '';
     if (_apiKey.isEmpty) {
       throw Exception('SPOONACULAR_API_KEY não encontrada no arquivo .env');
@@ -81,6 +80,7 @@ class SpoonacularService {
   // Busca receitas por ingredientes com suporte a paginação
   Future<List<Recipe>> searchRecipesByIngredients({
     required List<String> ingredients,
+    required String userId,
     int number = 10,
     int offset = 0,
     bool ignorePantry = true,
@@ -125,7 +125,7 @@ class SpoonacularService {
 
         // Busca os detalhes completos de cada receita
         final recipes = await Future.wait(
-          data.map((recipe) => getRecipeInformation(recipe['id'])),
+          data.map((recipe) => getRecipeInformation(recipe['id'], userId: userId)),
         );
 
         return recipes.whereType<Recipe>().toList();
@@ -138,7 +138,7 @@ class SpoonacularService {
   }
 
   // Obtém informações detalhadas de uma receita
-  Future<Recipe?> getRecipeInformation(int id) async {
+  Future<Recipe?> getRecipeInformation(int id, {required String userId}) async {
     try {
       _logger.info('Buscando detalhes da receita $id');
       final url = Uri.parse(
@@ -150,7 +150,7 @@ class SpoonacularService {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final recipe = SpoonacularRecipe.fromJson(data);
-        return recipe.toRecipe();
+        return recipe.toRecipe(userId);
       } else {
         _logger.severe('Erro na requisição: ${response.statusCode}');
         return null;
@@ -218,7 +218,7 @@ class SpoonacularService {
 
         // Busca os detalhes completos de cada receita
         final recipes = await Future.wait(
-          results.map((recipe) => getRecipeInformation(recipe['id'])),
+          results.map((recipe) => getRecipeInformation(recipe['id'], userId: _authService.currentUser?.id ?? '')),
         );
 
         return recipes.whereType<Recipe>().toList();
@@ -284,7 +284,7 @@ class SpoonacularService {
 
         // Busca os detalhes completos de cada receita
         final recipesWithDetails = await Future.wait(
-          recipes.map((recipe) => getRecipeInformation(recipe['id'])),
+          recipes.map((recipe) => getRecipeInformation(recipe['id'], userId: _authService.currentUser?.id ?? '')),
         );
 
         final filteredRecipes = recipesWithDetails.whereType<Recipe>().toList();
@@ -360,6 +360,7 @@ class SpoonacularService {
   // Busca receitas que usam ingredientes específicos
   Future<List<Recipe>> findRecipesByIngredientsOptimized({
     required List<String> ingredients,
+    required String userId,
     int number = 10,
     int offset = 0,
     bool ignorePantry = true,
@@ -406,7 +407,7 @@ class SpoonacularService {
 
         // Busca os detalhes completos de cada receita
         final recipes = await Future.wait(
-          data.map((recipe) => getRecipeInformation(recipe['id'])),
+          data.map((recipe) => getRecipeInformation(recipe['id'], userId: userId)),
         );
 
         return recipes.whereType<Recipe>().toList();
@@ -465,7 +466,7 @@ class SpoonacularService {
 
         // Busca os detalhes completos de cada receita similar
         final recipes = await Future.wait(
-          data.map((recipe) => getRecipeInformation(recipe['id'])),
+          data.map((recipe) => getRecipeInformation(recipe['id'], userId: _authService.currentUser?.id ?? '')),
         );
 
         return recipes.whereType<Recipe>().toList();

@@ -77,6 +77,8 @@ class AuthService implements IAuthService {
     }
   }
   
+  // Sign out implementation is done in the second method below
+  
   // Método estático para criar uma instância do AuthService
   // Útil para injeção de dependência com Riverpod
   // Singleton instance
@@ -208,8 +210,8 @@ class AuthService implements IAuthService {
       
       LoggerUtil.logger.fine('Criando usuário no sistema de autenticação');
       
-      // Configura o URL de redirecionamento para o app
-      final redirectUrl = 'com.example.desperdicio_zero://login-callback';
+      // Configura o URL de redirecionamento para confirmação de e-mail
+      final redirectUrl = 'com.example.desperdicio_zero://confirm-email';
       LoggerUtil.logger.fine('URL de redirecionamento: $redirectUrl');
       
       final signUpResponse = await _supabase.auth.signUp(
@@ -227,6 +229,13 @@ class AuthService implements IAuthService {
       if (signUpResponse.user == null) {
         LoggerUtil.logger.severe('Falha ao criar usuário: resposta sem usuário');
         throw Exception('Não foi possível criar sua conta. Tente novamente.');
+      }
+      
+      // Log do status de confirmação de e-mail
+      if (signUpResponse.session != null) {
+        LoggerUtil.logger.info('Usuário criado e logado automaticamente (e-mail verificado)');
+      } else {
+        LoggerUtil.logger.info('E-mail de confirmação enviado para: $email');
       }
 
       LoggerUtil.logger.info('Usuário criado com sucesso - ID: ${signUpResponse.user!.id} - Email: $email');
@@ -277,11 +286,33 @@ class AuthService implements IAuthService {
   Future<void> resetPassword(String email) async {
     try {
       LoggerUtil.logger.fine('Solicitando redefinição de senha para: $email');
+      
+      // URL de redirecionamento para o aplicativo
+      // Este deve corresponder exatamente ao configurado no painel do Supabase
+      final redirectTo = 'com.example.desperdicio_zero://reset-password';
+      
+      // Verifica se o e-mail é válido
+      if (email.trim().isEmpty) {
+        throw Exception('Por favor, informe um e-mail válido');
+      }
+      
+      LoggerUtil.logger.fine('Enviando e-mail de redefinição para: $email');
+      LoggerUtil.logger.fine('URL de redirecionamento: $redirectTo');
+      
+      // Envia o e-mail de redefinição
       await _supabase.auth.resetPasswordForEmail(
-        email,
-        redirectTo: SupabaseConfig.resetPasswordUrl,
+        email.trim(),
+        redirectTo: redirectTo,
       );
+      
       LoggerUtil.logger.info('E-mail de redefinição de senha enviado para: $email');
+      LoggerUtil.logger.fine('Redirecionamento configurado para: $redirectTo');
+    } on gotrue.AuthException catch (e) {
+      LoggerUtil.logger.severe('Erro de autenticação ao redefinir senha', e);
+      // Não revelamos se o e-mail existe ou não por questões de segurança
+      LoggerUtil.logger.info('Erro ao processar solicitação para o e-mail: $email');
+      // Relança a exceção para ser tratada pela UI
+      rethrow;
     } catch (e, stackTrace) {
       LoggerUtil.logger.severe('Erro ao solicitar redefinição de senha', e, stackTrace);
       rethrow;

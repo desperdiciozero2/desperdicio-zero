@@ -17,10 +17,10 @@ class ProductsListScreen extends StatefulWidget {
   });
 
   @override
-  _ProductsListScreenState createState() => _ProductsListScreenState();
+  ProductsListScreenState createState() => ProductsListScreenState();
 }
 
-class _ProductsListScreenState extends State<ProductsListScreen> {
+class ProductsListScreenState extends State<ProductsListScreen> {
   final TextEditingController _searchController = TextEditingController();
   final Debouncer _debouncer = Debouncer(milliseconds: 500);
   List<Product> _filteredProducts = [];
@@ -37,7 +37,10 @@ class _ProductsListScreenState extends State<ProductsListScreen> {
   void didUpdateWidget(ProductsListScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.products != oldWidget.products) {
-      _filterProducts();
+      setState(() {
+        _filteredProducts = List.from(widget.products);
+        _filterProducts();
+      });
     }
   }
 
@@ -63,7 +66,7 @@ class _ProductsListScreenState extends State<ProductsListScreen> {
     } else {
       _filteredProducts = widget.products.where((product) {
         return product.name.toLowerCase().contains(_searchQuery) ||
-            product.type.toLowerCase().contains(_searchQuery) ||
+            (product.type?.toLowerCase().contains(_searchQuery) ?? false) ||
             (product.brand?.toLowerCase().contains(_searchQuery) ?? false) ||
             (product.store?.toLowerCase().contains(_searchQuery) ?? false);
       }).toList();
@@ -164,7 +167,7 @@ class _ProductsListScreenState extends State<ProductsListScreen> {
                         leading: CircleAvatar(
                           backgroundColor: Colors.green[100],
                           child: Icon(
-                            _getIconForProductType(product.type),
+                            _getIconForProductType(product.type ?? 'outros'),
                             color: Colors.green[800],
                           ),
                         ),
@@ -334,7 +337,7 @@ class _ProductsListScreenState extends State<ProductsListScreen> {
             Row(
               children: [
                 Icon(
-                  _getIconForProductType(product.type),
+                  _getIconForProductType(product.type ?? 'outros'),
                   size: 32,
                   color: Colors.green[800],
                 ),
@@ -349,7 +352,7 @@ class _ProductsListScreenState extends State<ProductsListScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            _buildDetailRow('Tipo', product.type),
+            _buildDetailRow('Tipo', product.type ?? 'Não especificado'),
             _buildDetailRow(
               'Quantidade',
               '${product.quantity} ${product.unit}',
@@ -360,7 +363,9 @@ class _ProductsListScreenState extends State<ProductsListScreen> {
               _buildDetailRow('Mercado', product.store!),
             _buildDetailRow(
               'Data da Compra',
-              dateFormat.format(product.purchaseDate),
+              product.purchaseDate != null 
+                  ? dateFormat.format(product.purchaseDate!)
+                  : 'Não informada',
             ),
             if (product.expirationDate != null)
               _buildDetailRow(

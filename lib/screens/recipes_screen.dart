@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/recipe_model.dart';
 import '../services/spoonacular_service.dart';
+import '../services/auth_service.dart';
 import '../widgets/recipe_card.dart';
 
 class RecipesScreen extends StatefulWidget {
@@ -18,6 +19,7 @@ class RecipesScreenState extends State<RecipesScreen> {
   final ScrollController _scrollController = ScrollController();
   final List<Recipe> _allRecipes = [];
   final List<Recipe> _favoriteRecipes = [];
+  late final AuthService _authService;
   bool _isLoading = false;
   bool _hasMore = true;
   int _currentPage = 0;
@@ -30,6 +32,8 @@ class RecipesScreenState extends State<RecipesScreen> {
   @override
   void initState() {
     super.initState();
+    _authService = AuthService();
+    _spoonacularService = SpoonacularService();
     _scrollController.addListener(_onScroll);
     _loadRecipes();
   }
@@ -50,7 +54,7 @@ class RecipesScreenState extends State<RecipesScreen> {
     }
   }
 
-  final SpoonacularService _spoonacularService = SpoonacularService();
+  late SpoonacularService _spoonacularService;
 
   Future<void> _loadRecipes() async {
     if (_isLoading) return;
@@ -64,10 +68,16 @@ class RecipesScreenState extends State<RecipesScreen> {
     });
 
     try {
+      final userId = _authService.currentUser?.id;
+      if (userId == null) {
+        throw Exception('User not authenticated');
+      }
+
       final recipes =
           widget.ingredients != null && widget.ingredients!.isNotEmpty
               ? await _spoonacularService.searchRecipesByIngredients(
                   ingredients: widget.ingredients!,
+                  userId: userId,
                   number: _pageSize,
                   offset: 0,
                 )
@@ -103,25 +113,28 @@ class RecipesScreenState extends State<RecipesScreen> {
   Future<void> _loadMoreRecipes() async {
     if (_isLoading || !_hasMore) return;
 
-    setState(() => _isLoading = true);
-    _currentPage++;
+    setState(() {
+      _isLoading = true;
+      _currentPage++;
+    });
 
     try {
-      final recipes =
-          widget.ingredients != null && widget.ingredients!.isNotEmpty
-              ? await _spoonacularService.searchRecipesByIngredients(
-                  ingredients: widget.ingredients!,
-                  number: _pageSize,
-                  offset: _currentPage * _pageSize,
-                )
-              : await _spoonacularService.getRandomRecipes(
-                  number: _pageSize,
-                  offset: _currentPage * _pageSize,
-                );
+      final userId = _authService.currentUser?.id;
+      if (userId == null) {
+        throw Exception('User not authenticated');
+      }
+
+      final recipes = await _spoonacularService.findRecipesByIngredientsOptimized(
+        ingredients: widget.ingredients ?? [],
+        userId: userId,
+        number: _pageSize,
+        offset: _currentPage * _pageSize,
+      );
 
       setState(() {
         _allRecipes.addAll(recipes);
-        _hasMore = recipes.length >= _pageSize;
+        _isLoading = false;
+        _hasMore = recipes.length == _pageSize;
       });
     } catch (e) {
       _currentPage--; // Revert the page increment on error
@@ -165,9 +178,32 @@ class RecipesScreenState extends State<RecipesScreen> {
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
       filtered = filtered.where((recipe) {
-        return recipe.title.toLowerCase().contains(query) ||
-            recipe.ingredients.any((i) => i.toLowerCase().contains(query)) ||
-            (recipe.tipo ?? '').toLowerCase().contains(query);
+        // Check if title matches
+        if (recipe.title.toLowerCase().contains(query)) {
+          return true;
+        }
+        
+        // Check if any product name matches
+        if (recipe.products.any((p) {
+          final productName = p.product?.name;
+          if (productName == null) return false;
+          return productName.toLowerCase().contains(query);
+        })) {
+          return true;
+        }
+        
+        // Check first product's name if available
+        if (recipe.products.isNotEmpty) {
+          final product = recipe.products.first.product;
+          if (product != null) {
+            final firstName = product.name.toLowerCase();
+            if (firstName.contains(query)) {
+              return true;
+            }
+          }
+        }
+        
+        return false;
       }).toList();
     }
 

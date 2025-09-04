@@ -52,6 +52,8 @@
 		<dict>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.example.desperdicio_zero</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>com.example.desperdicio_zero</string>
@@ -59,9 +61,11 @@
 		</dict>
 	</array>
 	
-	<!-- Configuração do Associated Domains para Universal Links -->
+	<!-- Universal Links support -->
 	<key>com.apple.developer.associated-domains</key>
 	<array>
+		<string>applinks:example.com</string>
+	</array>
 		<string>applinks:buuzrnplodxzzmcgstxw.supabase.co</string>
 	</array>
 </dict>

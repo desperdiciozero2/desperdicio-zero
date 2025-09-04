@@ -1,23 +1,15 @@
 plugins {
-    id("com.android.application")
-    id("kotlin-android")
+    id("com.android.application") version "8.6.0"
+    id("org.jetbrains.kotlin.android") version "2.1.0"
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
 android {
     namespace = "com.example.desperdicio_zero"
+    
     compileSdk = 36
     ndkVersion = "27.0.12077973"
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
-
-    kotlinOptions {
-        jvmTarget = "11"
-    }
 
     defaultConfig {
         applicationId = "com.example.desperdicio_zero"
@@ -27,12 +19,15 @@ android {
         versionName = "1.0.0"
         multiDexEnabled = true
     }
-    
-    // Habilita o desugaring para suporte a Java 8
+
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
     }
     
     // Configuração de splits por ABI
@@ -82,5 +77,6 @@ flutter {
 dependencies {
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.multidex:multidex:2.0.1")
+    implementation("com.google.android.play:core:1.10.3")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 }
